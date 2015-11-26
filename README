@@ -1,0 +1,13 @@
+ESWITCH v0.1 - Switch between EGA and Tandy Video II
+----------------------------------------------------
+
+Based on VSWITCH by Jeffrey L. Hayes.
+Please see VSWITCH.DOC for further information.
+
+Requirements: a Tandy 1000 with Tandy Video II (TL and later)
+              an EGA card
+
+Usage: ESRES (install resident portion)
+       ESWITCH (switch between EGA and Tandy video)
+
+Questions? Get in touch with bjt on vogons.org or the Vintage Computer Forums.
