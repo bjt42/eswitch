@@ -1,0 +1,329 @@
+                               Vswitch v0.1
+              A program to switch between Tandy video and VGA
+                             Jeffrey L. Hayes
+                               May 19, 1997
+
+
+Contents
+--------
+
+Summary
+Usage
+Technical Stuff
+Contacting the Author
+
+
+Summary
+-------
+
+Vswitch is a program to switch between VGA and the onboard video in a Tandy 
+1000TL with 768k on the motherboard and a VGA card.  The idea is to allow 
+VGA to be temporarily disabled and the default video used to run programs 
+requiring Tandy/PCjr or Hercules video.  When I upgraded to VGA, I needed 
+something to do this so that I could continue to test Tandy programs for my 
+ftp site.  To use Vswitch, you need a VGA card, a VGA monitor, a CGA or MDA 
+monitor, and of course your Tandy ;-).
+
+I cannot certify that it will work on anybody's computer but mine, though 
+it would probably work on the TL/2, TL/3, RL, or RL-HD, as long as there is 
+768k on the motherboard.  Vswitch certainly will not work with EGA.  It 
+does not attempt to "protect" video memory, so it won't work without 768k 
+unless you put something in AUTOEXEC.BAT to do that yourself (i.e., 
+something similar to the Adjmem program, though I'm not sure if Adjmem 
+itself will work).
+
+If Vswitch doesn't work on your system and you would like to try to get it 
+to, the source code is included.  It was written with the A86 shareware 
+assembler.
+
+
+Usage
+-----
+
+To use Vswitch, install your VGA card and attach your VGA monitor to it, 
+then attach your old monitor to the built-in controller port.
+
+There are two parts to the program:  VSRES.COM, a TSR to be loaded in 
+AUTOEXEC.BAT; and VSWITCH.COM, a command-line program for toggling between 
+VGA and the onboard video.
+
+VSRES takes one optional parameter, "M" or "MONO".  That indicates that a 
+monochrome TTL monitor is attached to the onboard video controller.  In 
+that case, the built-in controller in the 1000TL's, SL's, and RL's displays 
+either MDA text or Hercules graphics.  If "M" is not specified, VSRES 
+assumes that a CGA monitor is attached to the built-in controller, in which 
+case the built-in controller displays CGA or Tandy/PCjr graphics.  Refer to 
+your owner's manual.  VSRES will tell you if it got installed or not.  For 
+example:
+
+    H:\>VSRES
+    Resident part of video switch utility installed -
+      onboard video monitor is CGA.
+
+Or:
+
+    H:\>VSRES MONO
+    Resident part of video switch utility installed -
+      onboard video monitor is monochrome TTL.
+
+Or:
+
+    H:\>VSRES
+    VGA not detected, resident part of video switch utility not installed.
+
+You would also get an error message if you attempted to run VSRES on a 
+system that is not a Tandy 1000-series.
+
+VSWITCH does not take any parameters.  It is a toggle:  you run VSWITCH 
+once to switch from VGA to Tandy video, then run it again to switch back.  
+VSWITCH normally will not say anything - you will just see the DOS prompt 
+move from one monitor to the other.  If VSRES is not loaded, VSWITCH will 
+display an error message:
+
+    H:\>VSWITCH
+    Video switch failed, VSRES not installed.
+
+The Tandy 1000-series require that a small program be run in AUTOEXEC.BAT 
+to ensure that applications can detect VGA.  I have written one - Vgafix - 
+and there are others.  They all do the same thing.  You have to run that 
+program *before* loading VSRES, or it will refuse to install.
+
+Be careful of other TSR's that deal with video.  In general, you will have 
+to install them *after* installing VSRES, uninstall them before running 
+VSWITCH, then reinstall.  That means that if you want mouse support you 
+will have to use MOUSE.COM, not MOUSE.SYS, and you will have to load the 
+mouse driver after VSRES.  For example, my AUTOEXEC.BAT file might look 
+like this:
+
+    C:\DOS\VGAFIXC
+    C:\DOS\VSRES
+    C:\DOS\MOUSE
+
+Then to switch video from VGA to Tandy or vice versa, I do this:
+
+    MOUSE OFF
+    VSWITCH
+    MOUSE
+
+That assumes that MOUSE.COM is the last thing loaded in AUTOEXEC.BAT.
+
+
+Technical Stuff
+---------------
+
+When a system with VGA installed boots, the default Int 10h vector is 
+replaced so as to point to the BIOS on the VGA card.  To switch back to 
+Tandy video, we need to restore the original vector.  The default Int 10h 
+vector, documented for the Phoenix BIOS, is F000:F065h.  (See _System BIOS 
+for IBM PCs, Compatibles, and EISA Computers_, 2nd edition, Phoenix 
+Technologies Ltd., 1991, p. 55.)  This is confirmed for CGA and MDA by 
+tracing the interrupt.
+
+The BIOS video data area must also be swapped when the video system is 
+changed.  This is the region between 0040:0049h and 0040:0066h, and the 
+region between 0040:0084h and 0040:008Ah.  (This according to the 
+_Programmer's Guide to PC Video Systems_, 2nd edition, by Richard Wilton, 
+Microsoft Press, 1994, p. 9.)  The addresses are inclusive (ibid., p. 385).  
+VGA uses an additional region of RAM addressed by a dword pointer at 
+0040:00A8h (ibid.), but CGA does not use that region (ibid., p. 388).  
+Hence we only need to swap the regions given above.  The addresses are 
+confirmed in _The New Peter Norton Programmer's Guide to the IBM PC & 
+PS/2_, by Peter Norton and Richard Wilton, Microsoft Press, 1988, pp. 58- 
+60.
+
+According to the _Tandy 1000TL Technical Reference Manual_, software 
+section, pp. 52-9, the region between 0040:0049h and 0040:0066h is used, 
+but there is no reference to the region between 0040:0084h and 0040:008Ah.  
+According to the _IBM PCjr Technical Reference Manual_, the byte at 
+0040:008Ah is used to save a copy of the CRT/CPU page register - confirmed 
+for the TL by examining the ROM code with debug.  BTW, the default values 
+for CRT/CPU pages are 7 for both.  There are 2 bytes at 0040:00B4-5h that 
+are of interest.  The byte at 0040:00B4h is supposed to be 0 for "no 
+monochrome monitor" and 0FFh for "monochrome monitor" - but that does not 
+seem to be the case on the 1000TL (see below).  For the byte at 0040:00B5h:
+
+    bit 4:  0 = internal color video support enabled
+            1 = internal color video support disabled, external color video 
+                enabled
+
+    bit 5:  0 = no external monochrome video installed
+            1 = external monochrome video installed
+
+Bit 4 is set if VGA is installed.
+
+The Int 1Dh vector addresses a table of video initialization values for MDA 
+or CGA (_Programmer's Guide to PC Video Systems_, pp. 395-6).  That vector 
+needs to be swapped also.  The Int 05h vector addresses the print screen 
+routine, which may have been modified by the VGA BIOS.  The vertical 
+nondisplay interrupt vector (Int 0Ah) might or might not be modified, but 
+it is probably a good idea *not* to swap it - IRQ 2 might be used for some 
+other device.  Int 1Fh addresses the character glyph table for the second 
+128 characters in graphics modes; in VGA, Int 43h addresses the character 
+glyphs for all 256 characters in graphics modes (_Programmer's Guide to PC 
+Video Systems_, pp. 274-5).
+
+Tandy video is enabled by bit 2 at port 65h.  That is *not* a read/write 
+port, in spite of what the _1000TL Technical Reference_ says.  Other bits 
+enable the hard drive, the parallel port, the floppy drive, and the serial 
+port, and they should always be high when writing to the port.
+
+VGA is disabled by issuing Int 10h, AH=12h, BL=32h, AL=01h.  It is enabled 
+with Int 10h, AH=12h, BL=32h, AL=00h (_The New Peter Norton Programmer's 
+Guide to the IBM PC & PS/2_, pp. 189-90).  This is confirmed by the 
+_Programmer's Guide to PC Video Systems_, pp. 424-5.
+
+Since the default values for the BIOS data areas will have been overwritten 
+by the time the TSR portion of Vswitch gets control, it is necessary to 
+include them in the program.
+
+We do not need to reprogram VGA when switching back to it, but we should 
+reprogram CGA, at least to the extent of setting the video mode (Int 10h, 
+AH=0).  That ensures that the BIOS data is in sync with the card state.
+
+The initial video mode information in the BIOS equipment list may also need 
+to be modified.
+
+The following are the values I found for the memory locations mentioned 
+above.  The Debug script VIDDATA.DBG was used to obtain this information:
+
+With CGA:
+
+   655360 bytes total memory
+   582528 bytes free
+
+-d 0:14 l4
+0000:0010              54 FF 00 F0                               T...
+-d 0:28 l4
+0000:0020                          1E E6 00 F0                       ....
+-d 0:74 l4
+0000:0070              00 E0 00 F0                               ....
+-d 0:7c l4
+0000:0070                                      AD C0 00 F0               ....
+-d 0:10c l4
+0000:0100                                      00 00 00 00               ....
+-d 40:10 11
+0040:0010  2D 54                                             -T
+-d 40:49 66
+0040:0040                             03 50 00 00 10 00 00            .P.....
+0040:0050  00 18 00 00 00 00 00 00-00 00 00 00 00 00 00 00   ................
+0040:0060  07 06 00 D4 03 29 20                              .....) 
+-d 40:84 8a
+0040:0080              00 00 00 00-00 00 3F                      ......?
+-d 40:b4 b5
+0040:00B0              00 0F                                     ..
+-q
+
+With MDA:
+
+   655360 bytes total memory
+   582528 bytes free
+
+-d 0:14 l4
+0000:0010              54 FF 00 F0                               T...
+-d 0:28 l4
+0000:0020                          1E E6 00 F0                       ....
+-d 0:74 l4
+0000:0070              00 E0 00 F0                               ....
+-d 0:7c l4
+0000:0070                                      AD C0 00 F0               ....
+-d 0:10c l4
+0000:0100                                      00 00 00 00               ....
+-d 40:10 11
+0040:0010  3D 54                                             =T
+-d 40:49 66
+0040:0040                             07 50 00 00 40 00 00            .P..@..
+0040:0050  00 18 00 00 00 00 00 00-00 00 00 00 00 00 00 00   ................
+0040:0060  0C 0B 00 B4 03 29 20                              .....) 
+-d 40:84 8a
+0040:0080              00 00 00 00-00 00 3F                      ......?
+-d 40:b4 b5
+0040:00B0              00 0F                                     ..
+-q
+
+With VGA, without VGAFIXC:
+
+   655360 bytes total memory
+   581104 bytes free
+
+-d 0:14 l4
+0000:0010              54 FF 00 F0                               T...
+-d 0:28 l4
+0000:0020                          1E E6 00 F0                       ....
+-d 0:74 l4
+0000:0070              10 DF 00 F0                               ....
+-d 0:7c l4
+0000:0070                                      36 3C 00 C0               6<..
+-d 0:10c l4
+0000:0100                                      36 38 00 C0               68..
+-d 40:10 11
+0040:0010  2D 54                                             -T
+-d 40:49 66
+0040:0040                             03 50 00 00 10 00 00            .P.....
+0040:0050  00 18 00 00 00 00 00 00-00 00 00 00 00 00 00 00   ................
+0040:0060  0E 0D 00 D4 03 29 30                              .....)0
+-d 40:84 8a
+0040:0080              18 10 00 60-09 11 3F                      ...`..?
+-d 40:b4 b5
+0040:00B0              00 1F                                     ..
+-q
+
+With VGA, with VGAFIXC:
+
+   655360 bytes total memory
+   581104 bytes free
+
+-d 0:14 l4
+0000:0010              54 FF 00 F0                               T...
+-d 0:28 l4
+0000:0020                          1E E6 00 F0                       ....
+-d 0:74 l4
+0000:0070              10 DF 00 F0                               ....
+-d 0:7c l4
+0000:0070                                      36 3C 00 C0               6<..
+-d 0:10c l4
+0000:0100                                      36 38 00 C0               68..
+-d 40:10 11
+0040:0010  2D 54                                             -T
+-d 40:49 66
+0040:0040                             03 50 00 00 10 00 00            .P.....
+0040:0050  00 18 00 00 00 00 00 00-00 00 00 00 00 00 00 00   ................
+0040:0060  0E 0D 00 D4 03 29 30                              .....)0
+-d 40:84 8a
+0040:0080              18 10 00 60-09 11 0B                      ...`...
+-d 40:b4 b5
+0040:00B0              00 1F                                     ..
+-q
+
+From the above, it appears that the only interrupt vectors changed by the 
+VGA BIOS in my particular system are Int 10h, Int 1Fh, and Int 43h.  
+Nevertheless, the vectors for Int 05h and Int 1Dh should be swapped as 
+well.  The vector for Int 0Ah should *not* be swapped.
+
+
+Contacting the Author
+---------------------
+
+This little program is free, no warranties, etc.  If you want to contact 
+me, the best way is via Internet email.  My address is:
+
+    tvdog@agate.net
+
+If you prefer, you can also use paper mail:
+
+    Jeffrey L. Hayes
+    130 Forest Ave., Lot 1
+    Orono, Me. 04473
+    USA
+
+I generally monitor the Usenet newsgroup comp.sys.tandy.
+
+The latest version of Vswitch, should there be another, would be at my 
+ftp/WWW site:
+
+    http://www.agate.net/~tvdog/
+    ftp://ftp.agate.net/users/01935/
+
+There are a lot of programs and other stuff for the Tandy 1000-series at 
+the site, including some by me.  The Tandy 1000-series FAQ is also to be 
+found there.
+
