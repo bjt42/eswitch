@@ -9,5 +9,9 @@ Requirements: a Tandy 1000 with 768k and Tandy Video II (TL and later)
 
 Usage: ESRES (install resident portion)
        ESWITCH (switch between EGA and Tandy video)
+       
+An EGA daughterboard can be used to route Tandy video to the EGA output,
+allowing a single monitor to be used.
+See https://github.com/bjt42/eswitch/wiki for a circuit diagram.
 
 Questions? Get in touch with bjt on vogons.org or the Vintage Computer Forums.
