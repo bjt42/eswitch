@@ -14,6 +14,8 @@ MAGIC3		EQU	493Ch		; magic numbers for exit
 MAGIC4		EQU	97BAh
 FAILMSG         DB      "Video switch failed, ESRES not installed."
 		DB	0Dh,0Ah,"$"
+TOTANDYMSG      DB      "Tandy video active.",0Dh,0Ah,"$"
+TOEGAMSG        DB      "EGA video active.",0Dh,0Ah,"$"
 
 ;
 ; Main program.
@@ -33,7 +35,15 @@ START:
 	JE	SUCCEEDED
 FAILED:
 	MOV	DX,OFFSET FAILMSG
-	MOV	AH,9
-	INT	21h
+        JMP     EXIT
 SUCCEEDED:
+        MOV     AX,40h                  ; ES -> BIOS data
+	MOV	ES,AX
+        MOV     DX,OFFSET TOTANDYMSG
+        TEST    BYTE PTR ES:[0B5h],10h  ; test "external video" bit
+        JNZ     EXIT
+        MOV     DX,OFFSET TOEGAMSG
+EXIT:
+	MOV	AH,9
+        INT     21h
 	INT	20h
