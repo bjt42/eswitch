@@ -41,7 +41,7 @@ SUCCEEDED:
 	MOV	ES,AX
         MOV     DX,OFFSET TOTANDYMSG
         TEST    BYTE PTR ES:[0B5h],10h  ; test "external video" bit
-        JNZ     EXIT
+        JZ      EXIT
         MOV     DX,OFFSET TOEGAMSG
 EXIT:
 	MOV	AH,9

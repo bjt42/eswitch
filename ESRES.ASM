@@ -13,6 +13,7 @@ MAGIC1		EQU	191Fh		; magic numbers for entry
 MAGIC2		EQU	0EF9Ch
 MAGIC3		EQU	493Ch		; magic numbers for exit
 MAGIC4		EQU	97BAh
+MAGIC5          EQU     0EFC9h          ; magic number for detection only
 EGAON           DB      1               ; 1 if EGA is active, 0 if not
 MONO		DB	0		; 1 if onboard video is mono TTL
 VIDDATASIZE	EQU	57
@@ -33,6 +34,11 @@ INT2FHDLR:
 	JNE	NOT_OURS
 	CMP	CX,MAGIC2
 	JE	SWITCHOK
+        CMP     CX,MAGIC5
+        JNE     NOT_OURS
+        MOV     BX,MAGIC3       ; detection only
+	MOV	CX,MAGIC4
+        IRET
 NOT_OURS:
 	JMP	DWORD PTR CS:INT2FOLD
 	;
@@ -212,6 +218,7 @@ NOTANDYMSG	DB	"Tandy 1000-series not detected, resident "
 		DB	"not installed.",0Dh,0Ah,"$"
 INSTALLMSG	DB	"Resident part of video switch utility installed -"
 		DB	0Dh,0Ah,"$"
+ALREADYMSG      DB      "Resident part of video switch utility already installed.",0Dh,0Ah,"$"
 MONOMSG		DB	"  onboard video monitor is monochrome TTL."
 		DB	0Dh,0Ah,"$"
 CGAMSG		DB	"  onboard video monitor is CGA."
@@ -312,7 +319,7 @@ CHK_TANDY:
 	MOV	AX,0FC00h
 	MOV	ES,AX
 	CMP	BYTE PTR ES:[0],21h
-	JE	INSTALL
+        JE      CHK_INSTALL
 	;
 	; Tandy 1000-series not detected - display error message and exit.
 	;
@@ -321,6 +328,18 @@ NOT_TANDY:
 	MOV	AH,9
 	INT	21h
 	INT	20h
+CHK_INSTALL:
+	MOV	BX,MAGIC1
+        MOV     CX,MAGIC5
+	INT	2Fh
+	CMP	BX,MAGIC3
+        JNE     INSTALL
+	CMP	CX,MAGIC4
+        JNE     INSTALL
+        MOV     DX,OFFSET ALREADYMSG
+        MOV     AH,9
+        INT     21h
+        INT     20h
 	;
 	; Installation OK - check for a command-line parameter.  Only one
 	; is allowed:  "M" or "MONO", which indicates that the monitor for
